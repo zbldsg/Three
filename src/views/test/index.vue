@@ -42,6 +42,7 @@ var offset = new THREE.Vector3();
 var normalMatrix = new THREE.Matrix3();
 var worldPosition = new THREE.Vector3();
 var mesh
+var dragAxis = ''
 
 
 export default {
@@ -99,14 +100,55 @@ export default {
 
       if (intersects.length > 0) {
         selectedObject = intersects[0].object;
-
         raycaster.ray.intersectPlane(plane, intersection);
 
-        normalMatrix.getNormalMatrix(selectedObject.matrixWorld);
-        plane.normal.applyMatrix3(normalMatrix).normalize();
-        offset.copy(intersection).sub(worldPosition.setFromMatrixPosition(selectedObject.matrixWorld));
+        // 计算拖拽方向向量
+        const startDragPosition = new THREE.Vector3();
+        const endDragPosition = new THREE.Vector3(mouse.x,intersection.y,intersection.z);
+        const dragDirection = new THREE.Vector3();
+        dragDirection.subVectors(endDragPosition, startDragPosition).normalize();
 
-        plane.setFromNormalAndCoplanarPoint(plane.normal, intersection);
+        // 判断拖拽轴向
+        normalMatrix = new THREE.Matrix3().getNormalMatrix(intersects[0].object.matrixWorld);
+        const worldNormal = intersects[0].face.normal.clone().applyMatrix3(normalMatrix).normalize();
+
+        const dotProduct = dragDirection.dot(worldNormal);
+
+        if (dotProduct > 0) {
+          // 拖拽方向朝着物体的正向
+          if (Math.abs(worldNormal.x) > Math.abs(worldNormal.y) && Math.abs(worldNormal.x) > Math.abs(worldNormal.z)) {
+            dragAxis = dragDirection.x > 0 ? "x+" : "x-";
+          } else if (Math.abs(worldNormal.z) > Math.abs(worldNormal.y) && Math.abs(worldNormal.z) > Math.abs(worldNormal.x)) {
+            dragAxis = dragDirection.z > 0 ? "z+" : "z-";
+          } else {
+            dragAxis = dragDirection.y > 0 ? "y+" : "y-";
+          }
+        } else if (dotProduct < 0) {
+          // 拖拽方向朝着物体的负向
+          if (Math.abs(worldNormal.x) > Math.abs(worldNormal.y) && Math.abs(worldNormal.x) > Math.abs(worldNormal.z)) {
+            dragAxis = dragDirection.x > 0 ? "x-" : "x+";
+          } else if (Math.abs(worldNormal.z) > Math.abs(worldNormal.y) && Math.abs(worldNormal.z) > Math.abs(worldNormal.x)) {
+            dragAxis = dragDirection.z > 0 ? "z-" : "z+";
+          } else {
+            dragAxis = dragDirection.y > 0 ? "y-" : "y+";
+          }
+        } else {
+          // 拖拽方向与物体法线垂直，无法确定拖拽方向
+          dragAxis = null;
+        }
+
+        console.log(dragAxis)
+
+
+        // raycaster.ray.intersectPlane(plane, intersection);
+
+        // console.log(intersection,'intersection')
+        // normalMatrix.getNormalMatrix(selectedObject.matrixWorld);
+        // plane.normal.applyMatrix3(normalMatrix).normalize();
+        // offset.copy(intersection).sub(worldPosition.setFromMatrixPosition(selectedObject.matrixWorld));
+
+        // plane.setFromNormalAndCoplanarPoint(plane.normal, intersection);
+
       }
     },
     onDocumentMouseMove(event) {
@@ -125,44 +167,44 @@ export default {
         // 计算射线与平面的交点
         raycaster.ray.intersectPlane(plane, intersection);
 
-        // 计算缩放比例
-        let scale = intersection.sub(worldPosition.setFromMatrixPosition(selectedObject.matrixWorld)).dot(plane.normal) / offset.dot(plane.normal);
-
-        // 计算顶点在模型空间中的位置
-        let position = worldPosition.copy(plane.normal).multiplyScalar(scale).add(offset);
-
-        // 根据拖动的方向更新顶点位置
-        let vertices = selectedObject.geometry.attributes.normal.array;
-        selectedObject.geometry.computeBoundingBox();
-        let min = selectedObject.geometry.boundingBox.min;
-        let max = selectedObject.geometry.boundingBox.max;
-        console.log(min,'min')
-        console.log(max,'max')
-        for (let i = 0; i < vertices.length; i++) {
-          let vertex = vertices[i];
-          let direction = new THREE.Vector3().subVectors(vertex, position).normalize();
-          if (Math.abs(direction.x) > Math.abs(direction.y) && Math.abs(direction.x) > Math.abs(direction.z)) {
-            if (vertex.x < (min.x + max.x) / 2) {
-              vertex.x = min.x;
-            } else {
-              vertex.x = max.x;
-            }
-          }
-          if (Math.abs(direction.y) > Math.abs(direction.x) && Math.abs(direction.y) > Math.abs(direction.z)) {
-            if (vertex.y < (min.y + max.y) / 2) {
-              vertex.y = min.y;
-            } else {
-              vertex.y = max.y;
-            }
-          }
-          if (Math.abs(direction.z) > Math.abs(direction.x) && Math.abs(direction.z) > Math.abs(direction.y)) {
-            if (vertex.z < (min.z + max.z) / 2) {
-              vertex.z = min.z;
-            } else {
-              vertex.z = max.z;
-            }
-          }
-        }
+        // // 计算缩放比例
+        // let scale = intersection.sub(worldPosition.setFromMatrixPosition(selectedObject.matrixWorld)).dot(plane.normal) / offset.dot(plane.normal);
+        //
+        // // 计算顶点在模型空间中的位置
+        // let position = worldPosition.copy(plane.normal).multiplyScalar(scale).add(offset);
+        //
+        // // 根据拖动的方向更新顶点位置
+        // let vertices = selectedObject.geometry.attributes.normal.array;
+        // selectedObject.geometry.computeBoundingBox();
+        // let min = selectedObject.geometry.boundingBox.min;
+        // let max = selectedObject.geometry.boundingBox.max;
+        // // console.log(min,'min')
+        // // console.log(max,'max')
+        // for (let i = 0; i < vertices.length; i++) {
+        //   let vertex = vertices[i];
+        //   let direction = new THREE.Vector3().subVectors(vertex, position).normalize();
+        //   if (Math.abs(direction.x) > Math.abs(direction.y) && Math.abs(direction.x) > Math.abs(direction.z)) {
+        //     if (vertex.x < (min.x + max.x) / 2) {
+        //       vertex.x = min.x;
+        //     } else {
+        //       vertex.x = max.x;
+        //     }
+        //   }
+        //   if (Math.abs(direction.y) > Math.abs(direction.x) && Math.abs(direction.y) > Math.abs(direction.z)) {
+        //     if (vertex.y < (min.y + max.y) / 2) {
+        //       vertex.y = min.y;
+        //     } else {
+        //       vertex.y = max.y;
+        //     }
+        //   }
+        //   if (Math.abs(direction.z) > Math.abs(direction.x) && Math.abs(direction.z) > Math.abs(direction.y)) {
+        //     if (vertex.z < (min.z + max.z) / 2) {
+        //       vertex.z = min.z;
+        //     } else {
+        //       vertex.z = max.z;
+        //     }
+        //   }
+        // }
         // 标记顶点发生变化
         selectedObject.geometry.verticesNeedUpdate = true;
         selectedObject.geometry.computeBoundingBox();
