@@ -102,6 +102,7 @@ export default {
 
       if (intersects.length > 0) {
         click = true
+        current.orbitControls.enabled = false
         selectedObject = intersects[0].object;
         raycaster.ray.intersectPlane(plane, intersection);
 
@@ -153,23 +154,13 @@ export default {
         plane.normal.applyMatrix3(normalMatrix).normalize();
         offset.copy(intersection).sub(worldPosition.setFromMatrixPosition(selectedObject.matrixWorld));
         plane.setFromNormalAndCoplanarPoint(plane.normal, intersection);
-
-
-        // raycaster.ray.intersectPlane(plane, intersection);
-
-        // console.log(intersection,'intersection')
-        // normalMatrix.getNormalMatrix(selectedObject.matrixWorld);
-        // plane.normal.applyMatrix3(normalMatrix).normalize();
-        // offset.copy(intersection).sub(worldPosition.setFromMatrixPosition(selectedObject.matrixWorld));
-
-        // plane.setFromNormalAndCoplanarPoint(plane.normal, intersection);
-
       }
     },
     onDocumentMouseMove(event) {
       event.preventDefault();
 
       if (selectedObject && click) {
+
         // 将屏幕坐标转换为threejs中的坐标
         let mouse = new THREE.Vector2(
             (event.clientX / window.innerWidth) * 2 - 1,
@@ -261,6 +252,7 @@ export default {
     onDocumentMouseUp(event) {
       event.preventDefault();
       click = false
+      current.orbitControls.enabled = true
     },
     initBox() {
       // 创建盒子
