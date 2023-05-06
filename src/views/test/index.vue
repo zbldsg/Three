@@ -36,6 +36,8 @@ const baseSceneData = {
 // 初始化变量
 var selectedObject = null;
 var plane = new THREE.Plane();
+// const helper = new THREE.PlaneHelper( plane, 10, 0xffff00 );
+
 var raycaster = new THREE.Raycaster();
 var intersection = new THREE.Vector3();
 var offset = new THREE.Vector3();
@@ -77,6 +79,7 @@ export default {
     init() {
       let data = {...baseSceneData};
       initAll(renderers, data, dom, current);
+      // current.scene.add( helper );
       this.initBox();
       this.animate();
     },
@@ -103,7 +106,16 @@ export default {
       if (intersects.length > 0) {
         click = true
         current.orbitControls.enabled = false
-        selectedObject = intersects[0].object;
+
+        //这里由于射线获取的第一个可能不是mesh，所以这里find一下
+        let meshObject = intersects.find(item => {
+          return item.face !== null
+        })
+        if(!meshObject) {
+          return
+        }
+        // selectedObject = intersects[0].object;
+        selectedObject = meshObject.object;
         raycaster.ray.intersectPlane(plane, intersection);
 
         // 计算拖拽方向向量
@@ -111,10 +123,14 @@ export default {
         const endDragPosition = new THREE.Vector3(mouse.x, intersection.y, intersection.z);
         const dragDirection = new THREE.Vector3();
         dragDirection.subVectors(endDragPosition, startDragPosition).normalize();
+        console.log(intersects,'看看')
 
         // 判断拖拽轴向
-        normalMatrix = new THREE.Matrix3().getNormalMatrix(intersects[0].object.matrixWorld);
-        const worldNormal = intersects[0].face.normal.clone().applyMatrix3(normalMatrix).normalize();
+
+        // normalMatrix = new THREE.Matrix3().getNormalMatrix(intersects[0].object.matrixWorld);
+        // const worldNormal = intersects[0].face.normal.clone().applyMatrix3(normalMatrix).normalize();
+        normalMatrix = new THREE.Matrix3().getNormalMatrix(meshObject.object.matrixWorld);
+        const worldNormal = meshObject.face.normal.clone().applyMatrix3(normalMatrix).normalize();
 
 
         const dotProduct = dragDirection.dot(worldNormal);
@@ -171,6 +187,7 @@ export default {
         raycaster.setFromCamera(mouse, current.camera);
         // 计算射线与平面的交点
         raycaster.ray.intersectPlane(plane, intersection);
+        console.log(intersection,'我是交点')
 
         //
         // const position = mesh.geometry.attributes.position;
@@ -225,6 +242,7 @@ export default {
         //     }
         //   }
         // }
+        // console.log(intersection,'我是什么')
 
         const position = mesh.geometry.attributes.position;
         const axisIndex = ['x', 'y', 'z'].indexOf(dragAxis);
@@ -235,6 +253,7 @@ export default {
 
           if ((isPlus && value >= 0) || (isNegative && value < 0)) {
             position.array[i * 3 + axisIndex] *= 1.02;
+            // position.array[i * 3 + axisIndex] = intersection[axisIndex];
           }
         }
 
@@ -247,7 +266,32 @@ export default {
         mesh.geometry.computeBoundingBox();
         mesh.geometry.computeBoundingSphere();
         mesh.geometry.computeVertexNormals();
+        this.refreshLine()
       }
+    },
+    refreshLine(){
+      const position = lineS.geometry.attributes.position;
+      const axisIndex = ['x', 'y', 'z'].indexOf(dragAxis);
+      const isNegative = !isPlus;
+
+      for (let i = 0; i < position.count; i++) {
+        const value = position.array[i * 3 + axisIndex];
+
+        if ((isPlus && value >= 0) || (isNegative && value < 0)) {
+          position.array[i * 3 + axisIndex] *= 1.02;
+          // position.array[i * 3 + axisIndex] = intersection[axisIndex];
+        }
+      }
+
+      position.needsUpdate = true;
+
+
+      lineS.geometry.attributes.position.needsUpdate = true;
+      // lineS.geometry.index.needsUpdate = true;
+      // 更新几何体的顶点和面
+      lineS.geometry.computeBoundingBox();
+      lineS.geometry.computeBoundingSphere();
+      lineS.geometry.computeVertexNormals();
     },
     onDocumentMouseUp(event) {
       event.preventDefault();
@@ -262,18 +306,18 @@ export default {
       mesh.name = "box";
       current.scene.add(mesh);
 
-      // const lineMaterial = new THREE.LineBasicMaterial({
-      //   // 线的颜色
-      //   color: "#000",
-      //   transparent: true,
-      //   opacity: .5,
-      //   depthTest: false,
-      //   alphaTest: .1,
-      // });
+      const lineMaterial = new THREE.LineBasicMaterial({
+        // 线的颜色
+        color: "#000",
+        transparent: true,
+        opacity: .5,
+        depthTest: false,
+        alphaTest: .1,
+      });
 
-      // let edges = new THREE.EdgesGeometry(mesh.geometry, 1);
-      // lineS = new THREE.LineSegments(edges, lineMaterial);
-      // current.scene.add(lineS);
+      let edges = new THREE.EdgesGeometry(mesh.geometry, 1);
+      lineS = new THREE.LineSegments(edges, lineMaterial);
+      current.scene.add(lineS);
     },
   },
   beforeDestroy() {
