@@ -182,74 +182,74 @@ export default {
         raycaster.ray.intersectPlane(plane, intersection);
 
         //
-        const position = mesh.geometry.attributes.position;
-        // for (let i = 0; i < position.count; i++) {
-        //   const x = position.getX(i);
-        //   if (x >= 0) {
-        //     position.setX(i, x * 1.02); // 只沿着y轴正方向缩放
+        // const position = mesh.geometry.attributes.position;
+        //
+        // if (dragAxis === 'x') {
+        //   if (isPlus) {
+        //     for (let i = 0; i < position.count; i++) {
+        //       const x = position.getX(i);
+        //       if (x >= 0) {
+        //         position.setX(i, x * 1.02);
+        //       }
+        //     }
+        //   } else {
+        //     for (let i = 0; i < position.count; i++) {
+        //       const x = position.getX(i);
+        //       if (x < 0) {
+        //         position.setX(i, x * 1.02);
+        //       }
+        //     }
         //   }
         //
-        //   const y = position.getY(i);
-        //   if (y >= 0) {
-        //     position.setY(i, y * 1.02); // 只沿着y轴正方向缩放
+        // } else if (dragAxis === 'y') {
+        //   if (isPlus) {
+        //     for (let i = 0; i < position.count; i++) {
+        //       const y = position.getY(i);
+        //       if (y >= 0) {
+        //         position.setY(i, y * 1.02);
+        //       }
+        //     }
+        //   } else {
+        //     for (let i = 0; i < position.count; i++) {
+        //       const y = position.getY(i);
+        //       if (y < 0) {
+        //         position.setY(i, y * 1.02);
+        //       }
+        //     }
         //   }
-        //
-        //   const z = position.getZ(i);
-        //   if (z >= 0) {
-        //     position.setZ(i, z * 1.02); // 只沿着y轴正方向缩放
+        // } else if (dragAxis === 'z') {
+        //   if (isPlus) {
+        //     for (let i = 0; i < position.count; i++) {
+        //       const z = position.getZ(i);
+        //       if (z >= 0) {
+        //         position.setZ(i, z * 1.02);
+        //       }
+        //     }
+        //   } else {
+        //     for (let i = 0; i < position.count; i++) {
+        //       const z = position.getZ(i);
+        //       if (z < 0) {
+        //         position.setZ(i, z * 1.02);
+        //       }
+        //     }
         //   }
         // }
 
-        if (dragAxis === 'x') {
-          if (isPlus) {
-            for (let i = 0; i < position.count; i++) {
-              const x = position.getX(i);
-              if (x >= 0) {
-                position.setX(i, x * 1.02);
-              }
-            }
-          } else {
-            for (let i = 0; i < position.count; i++) {
-              const x = position.getX(i);
-              if (x < 0) {
-                position.setX(i, x * 1.02);
-              }
-            }
-          }
+        const position = mesh.geometry.attributes.position;
+        const axisIndex = ['x', 'y', 'z'].indexOf(dragAxis);
+        const isNegative = !isPlus;
 
-        } else if (dragAxis === 'y') {
-          if (isPlus) {
-            for (let i = 0; i < position.count; i++) {
-              const y = position.getY(i);
-              if (y >= 0) {
-                position.setY(i, y * 1.02);
-              }
-            }
-          } else {
-            for (let i = 0; i < position.count; i++) {
-              const y = position.getY(i);
-              if (y < 0) {
-                position.setY(i, y * 1.02);
-              }
-            }
-          }
-        } else if (dragAxis === 'z') {
-          if (isPlus) {
-            for (let i = 0; i < position.count; i++) {
-              const z = position.getZ(i);
-              if (z >= 0) {
-                position.setZ(i, z * 1.02);
-              }
-            }
-          } else {
-            for (let i = 0; i < position.count; i++) {
-              const z = position.getZ(i);
-              if (z < 0) {
-                position.setZ(i, z * 1.02);
-              }
-            }
+        for (let i = 0; i < position.count; i++) {
+          const value = position.array[i * 3 + axisIndex];
+
+          if ((isPlus && value >= 0) || (isNegative && value < 0)) {
+            position.array[i * 3 + axisIndex] *= 1.02;
           }
         }
+
+        position.needsUpdate = true;
+
+
         mesh.geometry.attributes.position.needsUpdate = true;
         mesh.geometry.index.needsUpdate = true;
         // 更新几何体的顶点和面
