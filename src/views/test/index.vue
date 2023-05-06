@@ -42,7 +42,10 @@ var offset = new THREE.Vector3();
 var normalMatrix = new THREE.Matrix3();
 var worldPosition = new THREE.Vector3();
 var mesh
+var lineS
 var dragAxis = ''
+var isPlus = false
+var click = false
 
 
 export default {
@@ -59,15 +62,14 @@ export default {
       onWindowResize(current.camera, renderers.renderer, dom);
     };
     this.$nextTick(() => {
-      // window.addEventListener("mousemove", _this.onMouseDbClick, false);
-      // window.addEventListener("mousemove", this.onDocumentMouseDown, false);
-      // window.addEventListener("mousemove", this.onDocumentMouseMove, false);
-
       // 监听鼠标按下事件
-      window.addEventListener("mousedown", this.onDocumentMouseDown, false);
+      dom.addEventListener("mousedown", this.onDocumentMouseDown);
 
       // 监听鼠标移动事件
-      window.addEventListener("mousemove", this.onDocumentMouseMove, false);
+      dom.addEventListener("mousemove", this.onDocumentMouseMove);
+
+      // 监听鼠标移动事件
+      dom.addEventListener("mouseup", this.onDocumentMouseUp);
     });
     this.init();
   },
@@ -99,12 +101,13 @@ export default {
       let intersects = raycaster.intersectObjects(current.scene.children);
 
       if (intersects.length > 0) {
+        click = true
         selectedObject = intersects[0].object;
         raycaster.ray.intersectPlane(plane, intersection);
 
         // 计算拖拽方向向量
         const startDragPosition = new THREE.Vector3();
-        const endDragPosition = new THREE.Vector3(mouse.x,intersection.y,intersection.z);
+        const endDragPosition = new THREE.Vector3(mouse.x, intersection.y, intersection.z);
         const dragDirection = new THREE.Vector3();
         dragDirection.subVectors(endDragPosition, startDragPosition).normalize();
 
@@ -112,25 +115,32 @@ export default {
         normalMatrix = new THREE.Matrix3().getNormalMatrix(intersects[0].object.matrixWorld);
         const worldNormal = intersects[0].face.normal.clone().applyMatrix3(normalMatrix).normalize();
 
+
         const dotProduct = dragDirection.dot(worldNormal);
 
         if (dotProduct > 0) {
           // 拖拽方向朝着物体的正向
           if (Math.abs(worldNormal.x) > Math.abs(worldNormal.y) && Math.abs(worldNormal.x) > Math.abs(worldNormal.z)) {
-            dragAxis = dragDirection.x > 0 ? "x+" : "x-";
+            dragAxis = 'x'
+            isPlus = dragDirection.x > 0 ? true : false;
           } else if (Math.abs(worldNormal.z) > Math.abs(worldNormal.y) && Math.abs(worldNormal.z) > Math.abs(worldNormal.x)) {
-            dragAxis = dragDirection.z > 0 ? "z+" : "z-";
+            dragAxis = 'z'
+            isPlus = dragDirection.z > 0  ? true : false;
           } else {
-            dragAxis = dragDirection.y > 0 ? "y+" : "y-";
+            dragAxis = 'y'
+            isPlus = dragDirection.y > 0 ?  true : false;
           }
         } else if (dotProduct < 0) {
           // 拖拽方向朝着物体的负向
           if (Math.abs(worldNormal.x) > Math.abs(worldNormal.y) && Math.abs(worldNormal.x) > Math.abs(worldNormal.z)) {
-            dragAxis = dragDirection.x > 0 ? "x-" : "x+";
+            dragAxis = 'x'
+            isPlus = dragDirection.x > 0 ? false : true;
           } else if (Math.abs(worldNormal.z) > Math.abs(worldNormal.y) && Math.abs(worldNormal.z) > Math.abs(worldNormal.x)) {
-            dragAxis = dragDirection.z > 0 ? "z-" : "z+";
+            dragAxis = 'z'
+            isPlus = dragDirection.z > 0 ? false : true;
           } else {
-            dragAxis = dragDirection.y > 0 ? "y-" : "y+";
+            dragAxis = 'y'
+            isPlus = dragDirection.y > 0 ? false : true;
           }
         } else {
           // 拖拽方向与物体法线垂直，无法确定拖拽方向
@@ -138,6 +148,11 @@ export default {
         }
 
         console.log(dragAxis)
+        console.log(isPlus)
+
+        plane.normal.applyMatrix3(normalMatrix).normalize();
+        offset.copy(intersection).sub(worldPosition.setFromMatrixPosition(selectedObject.matrixWorld));
+        plane.setFromNormalAndCoplanarPoint(plane.normal, intersection);
 
 
         // raycaster.ray.intersectPlane(plane, intersection);
@@ -154,7 +169,7 @@ export default {
     onDocumentMouseMove(event) {
       event.preventDefault();
 
-      if (selectedObject) {
+      if (selectedObject && click) {
         // 将屏幕坐标转换为threejs中的坐标
         let mouse = new THREE.Vector2(
             (event.clientX / window.innerWidth) * 2 - 1,
@@ -163,61 +178,110 @@ export default {
 
         // 射线拾取
         raycaster.setFromCamera(mouse, current.camera);
-
         // 计算射线与平面的交点
         raycaster.ray.intersectPlane(plane, intersection);
 
-        // // 计算缩放比例
-        // let scale = intersection.sub(worldPosition.setFromMatrixPosition(selectedObject.matrixWorld)).dot(plane.normal) / offset.dot(plane.normal);
         //
-        // // 计算顶点在模型空间中的位置
-        // let position = worldPosition.copy(plane.normal).multiplyScalar(scale).add(offset);
+        const position = mesh.geometry.attributes.position;
+        // for (let i = 0; i < position.count; i++) {
+        //   const x = position.getX(i);
+        //   if (x >= 0) {
+        //     position.setX(i, x * 1.02); // 只沿着y轴正方向缩放
+        //   }
         //
-        // // 根据拖动的方向更新顶点位置
-        // let vertices = selectedObject.geometry.attributes.normal.array;
-        // selectedObject.geometry.computeBoundingBox();
-        // let min = selectedObject.geometry.boundingBox.min;
-        // let max = selectedObject.geometry.boundingBox.max;
-        // // console.log(min,'min')
-        // // console.log(max,'max')
-        // for (let i = 0; i < vertices.length; i++) {
-        //   let vertex = vertices[i];
-        //   let direction = new THREE.Vector3().subVectors(vertex, position).normalize();
-        //   if (Math.abs(direction.x) > Math.abs(direction.y) && Math.abs(direction.x) > Math.abs(direction.z)) {
-        //     if (vertex.x < (min.x + max.x) / 2) {
-        //       vertex.x = min.x;
-        //     } else {
-        //       vertex.x = max.x;
-        //     }
+        //   const y = position.getY(i);
+        //   if (y >= 0) {
+        //     position.setY(i, y * 1.02); // 只沿着y轴正方向缩放
         //   }
-        //   if (Math.abs(direction.y) > Math.abs(direction.x) && Math.abs(direction.y) > Math.abs(direction.z)) {
-        //     if (vertex.y < (min.y + max.y) / 2) {
-        //       vertex.y = min.y;
-        //     } else {
-        //       vertex.y = max.y;
-        //     }
-        //   }
-        //   if (Math.abs(direction.z) > Math.abs(direction.x) && Math.abs(direction.z) > Math.abs(direction.y)) {
-        //     if (vertex.z < (min.z + max.z) / 2) {
-        //       vertex.z = min.z;
-        //     } else {
-        //       vertex.z = max.z;
-        //     }
+        //
+        //   const z = position.getZ(i);
+        //   if (z >= 0) {
+        //     position.setZ(i, z * 1.02); // 只沿着y轴正方向缩放
         //   }
         // }
-        // 标记顶点发生变化
-        selectedObject.geometry.verticesNeedUpdate = true;
-        selectedObject.geometry.computeBoundingBox();
-        selectedObject.geometry.computeBoundingSphere();
+
+        if (dragAxis === 'x') {
+          if (isPlus) {
+            for (let i = 0; i < position.count; i++) {
+              const x = position.getX(i);
+              if (x >= 0) {
+                position.setX(i, x * 1.02);
+              }
+            }
+          } else {
+            for (let i = 0; i < position.count; i++) {
+              const x = position.getX(i);
+              if (x < 0) {
+                position.setX(i, x * 1.02);
+              }
+            }
+          }
+
+        } else if (dragAxis === 'y') {
+          if (isPlus) {
+            for (let i = 0; i < position.count; i++) {
+              const y = position.getY(i);
+              if (y >= 0) {
+                position.setY(i, y * 1.02);
+              }
+            }
+          } else {
+            for (let i = 0; i < position.count; i++) {
+              const y = position.getY(i);
+              if (y < 0) {
+                position.setY(i, y * 1.02);
+              }
+            }
+          }
+        } else if (dragAxis === 'z') {
+          if (isPlus) {
+            for (let i = 0; i < position.count; i++) {
+              const z = position.getZ(i);
+              if (z >= 0) {
+                position.setZ(i, z * 1.02);
+              }
+            }
+          } else {
+            for (let i = 0; i < position.count; i++) {
+              const z = position.getZ(i);
+              if (z < 0) {
+                position.setZ(i, z * 1.02);
+              }
+            }
+          }
+        }
+        mesh.geometry.attributes.position.needsUpdate = true;
+        mesh.geometry.index.needsUpdate = true;
+        // 更新几何体的顶点和面
+        mesh.geometry.computeBoundingBox();
+        mesh.geometry.computeBoundingSphere();
+        mesh.geometry.computeVertexNormals();
       }
+    },
+    onDocumentMouseUp(event) {
+      event.preventDefault();
+      click = false
     },
     initBox() {
       // 创建盒子
       let geometry = new THREE.BoxGeometry(1, 1, 1);
-      let material = new THREE.MeshPhongMaterial({color: 0xff0000});
+      let material = new THREE.MeshStandardMaterial({color: 0xff0000});
       mesh = new THREE.Mesh(geometry, material);
       mesh.name = "box";
       current.scene.add(mesh);
+
+      // const lineMaterial = new THREE.LineBasicMaterial({
+      //   // 线的颜色
+      //   color: "#000",
+      //   transparent: true,
+      //   opacity: .5,
+      //   depthTest: false,
+      //   alphaTest: .1,
+      // });
+
+      // let edges = new THREE.EdgesGeometry(mesh.geometry, 1);
+      // lineS = new THREE.LineSegments(edges, lineMaterial);
+      // current.scene.add(lineS);
     },
   },
   beforeDestroy() {
